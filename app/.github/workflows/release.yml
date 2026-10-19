@@ -1,0 +1,131 @@
+name: Build & Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag (e.g. v1.0.0)'
+        required: false
+        default: 'v1.0.0'
+      release_title:
+        description: 'Release Title'
+        required: false
+        default: 'Didban Vision (دیدبان نابینایان) - Release'
+      prerelease:
+        description: 'Mark as Pre-release'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    name: Build & Publish to Releases
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Grant Execute Permission to Gradle Wrapper
+        run: chmod +x gradlew
+
+      - name: Run Tests
+        run: ./gradlew testDebugUnitTest --no-daemon
+
+      - name: Build Debug & Release Binaries (APK & AAB)
+        run: |
+          echo "Building Debug APK..."
+          ./gradlew assembleDebug --no-daemon
+          
+          echo "Building Release APK and App Bundle (AAB)..."
+          ./gradlew assembleRelease bundleRelease --no-daemon || true
+
+      - name: Package Release Assets
+        id: package_assets
+        run: |
+          mkdir -p release-assets
+          
+          TAG="${{ github.ref_name }}"
+          if [ -z "$TAG" ] || [ "$TAG" = "main" ] || [ "$TAG" = "master" ]; then
+            TAG="${{ inputs.tag_name || 'v1.0.0' }}"
+          fi
+          echo "CURRENT_TAG=$TAG" >> $GITHUB_ENV
+          
+          # Copy and rename Debug APK
+          if ls app/build/outputs/apk/debug/*.apk 1> /dev/null 2>&1; then
+            cp app/build/outputs/apk/debug/*.apk "release-assets/Didban-Vision-${TAG}-debug.apk"
+            echo "Copied debug APK"
+          fi
+          
+          # Copy and rename Release APK if available
+          if ls app/build/outputs/apk/release/*.apk 1> /dev/null 2>&1; then
+            cp app/build/outputs/apk/release/*.apk "release-assets/Didban-Vision-${TAG}-release.apk"
+            echo "Copied release APK"
+          fi
+          
+          # Copy and rename Release AAB if available
+          if ls app/build/outputs/bundle/release/*.aab 1> /dev/null 2>&1; then
+            cp app/build/outputs/bundle/release/*.aab "release-assets/Didban-Vision-${TAG}-release.aab"
+            echo "Copied release AAB bundle"
+          fi
+          
+          # Generate SHA256 Checksums
+          cd release-assets
+          sha256sum * > "checksums-sha256.txt"
+          cd ..
+          
+          echo "Assets packaged successfully:"
+          ls -la release-assets/
+
+      - name: Upload Artifacts to Workflow Run
+        uses: actions/upload-artifact@v4
+        with:
+          name: didban-binaries
+          path: release-assets/*
+          retention-days: 30
+
+      - name: Create GitHub Release and Upload Binaries
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.CURRENT_TAG }}
+          name: ${{ inputs.release_title || env.CURRENT_TAG }}
+          files: release-assets/*
+          draft: false
+          prerelease: ${{ inputs.prerelease || false }}
+          generate_release_notes: true
+          body: |
+            ## سامانه دیدبان نابینایان (Didban Vision) - نسخه ${{ env.CURRENT_TAG }}
+            
+            ### فایل‌های آماده دانلود:
+            - **نسخه APK دیباگ (نصب فوری روی تمامی گوشی‌های اندروید)**: `Didban-Vision-${{ env.CURRENT_TAG }}-debug.apk`
+            - **نسخه APK نهایی**: `Didban-Vision-${{ env.CURRENT_TAG }}-release.apk`
+            - **باندل گوگل پلی (AAB)**: `Didban-Vision-${{ env.CURRENT_TAG }}-release.aab`
+            - **کدهای اعتبارسنجی هش**: `checksums-sha256.txt`
+            
+            ### ویژگی‌های کلیدی:
+            - رادار تشخیص موانع پرسرعت (YOLO v11) با محاسبه فواصل، بردار سرعت و جهت حرکت.
+            - دیتاست اختصاصی بومی ایران (موتور در پیاده‌رو، جوب، پل فلزی، میله‌های زرد، اسکناس‌های تومان).
+            - موتور صوتی داخلی eSpeak-NG آفلاین و پرسرعت برای زبان فارسی با تقویت صدا.
+            - الگوریتم اولویت‌بندی لحظه‌ای شرایط محیطی (از مهم به جزئی).
+            - استودیوی دانلود دیتاست از گوگل بدون API و آموزش درون‌دستگاهی مدل.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

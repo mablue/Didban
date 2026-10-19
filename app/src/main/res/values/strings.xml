@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">دیدبان</string>
+    <string name="didban_full_title">دیدبان هوشمند نابینایان</string>
+    <string name="subtitle_ai_vision">سامانه بینایی مصنوعی و رادار فراصوت موانع</string>
+    <string name="mode_realtime_radar">رادار پرسرعت موانع</string>
+    <string name="mode_iranian_objects">اشیاء و محیط ایران</string>
+    <string name="mode_currency_reader">تشخیص اسکناس و پول</string>
+    <string name="mode_full_scene">تحلیل عمیق محیط</string>
+    <string name="status_scanning">در حال اسکن زنده...</string>
+    <string name="collision_warning">هشدار خطر برخورد!</string>
+    <string name="safe_distance">مسیر باز است</string>
+    <string name="camera_permission_required">برای تحلیل محیط، به دسترسی دوربین نیاز است.</string>
+    <string name="grant_permission">اعطای مجوز دوربین</string>
+    <string name="audio_guidance_active">راهنمای صوتی فارسی فعال است</string>
+    <string name="haptic_feedback_enabled">ویبره هشدار فعال است</string>
+</resources>

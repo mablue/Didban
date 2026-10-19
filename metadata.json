@@ -1,0 +1,8 @@
+{
+  "name": "Didban Vision",
+  "description": "دستیار فوق‌سریع بینایی نابینایان و کم‌بینایان با تشخیص فواصل، سرعت، جهت حرکت و اشیاء تخصصی روزمره در ایران بر پایه هوش مصنوعی",
+  "requestFramePermissions": [
+    "android.permission.CAMERA"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
