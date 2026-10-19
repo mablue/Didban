@@ -27,14 +27,44 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
+      - name: Setup Keystores & Environment
+        run: |
+          # Create .env if missing for Secrets Gradle plugin
+          touch .env
+
+          # Restore debug.keystore from base64 or generate standard debug keystore
+          if [ -f "debug.keystore.base64" ]; then
+            echo "Restoring debug.keystore from debug.keystore.base64..."
+            base64 -d debug.keystore.base64 > debug.keystore
+          elif [ ! -f "debug.keystore" ]; then
+            echo "Generating standard debug.keystore..."
+            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+          # Setup fallback release keystore
+          if [ ! -f "my-upload-key.jks" ]; then
+            echo "Generating fallback upload keystore..."
+            keytool -genkey -v -keystore my-upload-key.jks -storepass android -alias upload -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Didban Release,O=AIStudio,C=US"
+          fi
+
+          ls -la debug.keystore my-upload-key.jks
+
       - name: Make Gradle Wrapper Executable
         run: chmod +x gradlew
 
       - name: Run Unit & Robolectric Tests
         run: ./gradlew testDebugUnitTest --no-daemon --stacktrace
+        env:
+          STORE_PASSWORD: "android"
+          KEY_PASSWORD: "android"
+          KEYSTORE_PATH: "my-upload-key.jks"
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon --stacktrace
+        env:
+          STORE_PASSWORD: "android"
+          KEY_PASSWORD: "android"
+          KEYSTORE_PATH: "my-upload-key.jks"
 
       - name: Upload Test Results
         if: always()
